@@ -121,11 +121,14 @@ namespace autolabor_driver {
     }
 
     // 已经排除了线速度和角速度为0的情况
-    void Pm1Driver::optimize_speed(double v, double omega, double angle, double &left, double &right) {
+    void Pm1Driver::optimize_speed(double v, double omega, double angle, double &optimize_v, double &optimize_omega) {
         double theta;
         spin_to_theta(angle, theta);
         double rho_from = -1.0, rho_to = 1.0;
         double rho_diff = fabs(rho_to - rho_from);
+
+        double best_rho = 0;
+
         while (rho_diff > threshold_) {
             int best_index = -1;
             double best_value = DBL_MAX;
@@ -142,15 +145,18 @@ namespace autolabor_driver {
 
             rho_diff /= sample_size_;
             if (best_index == 0) {
+                best_rho = rho_from;
                 rho_to = rho_from + rho_diff;
             } else if (best_index == sample_size_ - 1) {
+                best_rho = rho_to;
                 rho_from = rho_to - rho_diff;
             } else {
-                double tmp = interpolation(rho_from, rho_to, sample_size_, best_index);
-                rho_from = tmp - rho_diff;
-                rho_to = tmp + rho_diff;
+                best_rho = interpolation(rho_from, rho_to, sample_size_, best_index);
+                rho_from = best_rho - rho_diff;
+                rho_to = best_rho + rho_diff;
             }
         }
+        rhotheta_to_vomega(best_rho, theta, optimize_v, optimize_omega);
     }
 
     void Pm1Driver::driver_car(double left, double right, double angle) {
@@ -160,21 +166,21 @@ namespace autolabor_driver {
         ecu_left_target_speed.node_type = CANBUS_NODETYPE_ECU;
         ecu_left_target_speed.node_seq = static_cast<unsigned char>(ecu_left_id_);
         ecu_left_target_speed.msg_type = CANBUS_MESSAGETYPE_ECU_TARGETSPEED;
-        ecu_left_target_speed.payload = int_to_uint_vector(static_cast<int32_t>(lround(left * speed_coefficient_)));
+        int_to_uint_vector(static_cast<int32_t>(lround(left * speed_coefficient_)), ecu_left_target_speed.payload);
         srv.request.requests.push_back(ecu_left_target_speed);
 
         autolabor_canbus_driver::CanBusMessage ecu_right_target_speed;
         ecu_right_target_speed.node_type = CANBUS_NODETYPE_ECU;
         ecu_right_target_speed.node_seq = static_cast<unsigned char>(ecu_right_id_);
         ecu_right_target_speed.msg_type = CANBUS_MESSAGETYPE_ECU_TARGETSPEED;
-        ecu_right_target_speed.payload = int_to_uint_vector(static_cast<int32_t>(lround(right * speed_coefficient_)));
+        int_to_uint_vector(static_cast<int32_t>(lround(right * speed_coefficient_)), ecu_right_target_speed.payload);
         srv.request.requests.push_back(ecu_right_target_speed);
 
         autolabor_canbus_driver::CanBusMessage tcu_target_angle;
         tcu_target_angle.node_type = CANBUS_NODETYPE_TCU;
         tcu_target_angle.node_seq = static_cast<unsigned char>(tcu_id_);
         tcu_target_angle.msg_type = CANBUS_MESSAGETYPE_TCU_TARGETANGLE;
-        tcu_target_angle.payload = short_to_uint_vector(static_cast<int16_t>(lround(angle * spin_coefficient_)));
+        short_to_uint_vector(static_cast<int16_t>(lround(angle * spin_coefficient_)), tcu_target_angle.payload);
         srv.request.requests.push_back(tcu_target_angle);
 
         canbus_client_.call(srv);
@@ -196,16 +202,16 @@ namespace autolabor_driver {
             send_wheel_angle(wheel_angle);
 
             if ((twist_cache_.linear.x != 0 || twist_cache_.angular.z != 0) && (ros::Time::now() - last_twist_time_).sec < twist_timeout_) {
-                double optimize_left, optimize_right; // 速度
-                optimize_speed(twist_cache_.linear.x, twist_cache_.angular.z, wheel_angle, optimize_left, optimize_right);
+                double optimize_v, optimize_omega; // 速度
+                optimize_speed(twist_cache_.linear.x, twist_cache_.angular.z, wheel_angle, optimize_v, optimize_omega);
                 double target_angle = calculate_target_angle(twist_cache_.linear.x, twist_cache_.angular.z);
-                driver_car(optimize_left, optimize_right, target_angle);
+                std::cout << "target_v : " << twist_cache_.linear.x << " target_omega : " << twist_cache_.angular.z << " target_angle : " << target_angle
+                          << " optimize_v : " << optimize_v << " optimize_omega : " << optimize_omega << " current_angle : " << wheel_angle << std::endl;
+                driver_car(optimize_v - optimize_omega * wheel_spacing_ / 2, optimize_v + optimize_omega * wheel_spacing_ / 2, target_angle);
             } else {
                 driver_car(0.0, 0.0, wheel_angle);
             }
         }
-
-
     }
 
     void Pm1Driver::handle_twist_msg(const geometry_msgs::Twist::ConstPtr &msg) {
@@ -243,21 +249,18 @@ namespace autolabor_driver {
         spin_coefficient_ = 8190.0 / M_PI;
         max_motion_encoder_ = max_speed_ * speed_coefficient_;
 
-        canbus_msg_subscriber_ = node.subscribe("canbus_msg", 100, &Pm1Driver::handle_canbus_msg, this);
-        twist_subscriber_ = node.subscribe("cmd_vel", 10, &Pm1Driver::handle_twist_msg, this);
+        canbus_msg_subscriber_ = node.subscribe("/canbus_msg", 100, &Pm1Driver::handle_canbus_msg, this);
+        twist_subscriber_ = node.subscribe("/cmd_vel", 10, &Pm1Driver::handle_twist_msg, this);
         canbus_client_ = node.serviceClient<autolabor_canbus_driver::CanBusService>("canbus_server");
 
-        odom_pub_ = node.advertise<nav_msgs::Odometry>("odom", 10);
-        wheel_angle_pub_ = node.advertise<std_msgs::Float64>("wheel_angle", 10);
+        odom_pub_ = node.advertise<nav_msgs::Odometry>("/odom", 10);
+        wheel_angle_pub_ = node.advertise<std_msgs::Float64>("/wheel_angle", 10);
 
         ros::Timer ask_encoder_timer = node.createTimer(ros::Duration(1.0 / rate_), &Pm1Driver::ask_encoder, this);
 
         ros::spin();
     }
-
-
 }
-
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "pm1_driver");

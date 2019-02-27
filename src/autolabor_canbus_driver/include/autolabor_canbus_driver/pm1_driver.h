@@ -64,11 +64,10 @@ namespace autolabor_driver {
             return x;
         }
 
-        inline std::vector<uint8_t> int_to_uint_vector(int32_t value) {
-            std::vector<uint8_t> v;
+        inline void int_to_uint_vector(int32_t value, std::vector<uint8_t> &v) {
+            v.clear();
             for (int i = 0; i < 4; i++) {
-                v[3 - i] = static_cast<uint8_t>(value & 0xff);
-                value >>= 8;
+                v.push_back(static_cast<const unsigned char &>((value >> ((3 - i) * 8)) & 0xff));
             }
         }
 
@@ -81,11 +80,10 @@ namespace autolabor_driver {
             return x;
         }
 
-        inline std::vector<uint8_t> short_to_uint_vector(int16_t value) {
-            std::vector<uint8_t> v;
+        inline void short_to_uint_vector(int16_t value, std::vector<uint8_t> &v) {
+            v.clear();
             for (int i = 0; i < 2; i++) {
-                v[1 - i] = static_cast<uint8_t>(value & 0xff);
-                value >>= 8;
+                v.push_back(static_cast<const unsigned char &>((value >> ((1 - i) * 8)) & 0xff));
             }
         }
 
@@ -162,7 +160,7 @@ namespace autolabor_driver {
                 distance_from_targetpath = fabs(y_limit);
             } else {
                 double r_target = v_target / omega_target;
-                distance_from_targetpath = fabs(sqrt(pow(x_limit, 2) + pow(y_limit - r_target, 2)) - fabs(r_target));
+                distance_from_targetpath = fabs(sqrt(pow(x_limit, 2.0) + pow(y_limit - r_target, 2.0)) - fabs(r_target));
             }
             return path_weight_ * distance_from_targetpath + endpoint_weight_ * distance_from_endpoint + angle_weight_ * distance_from_yaw;
         }
