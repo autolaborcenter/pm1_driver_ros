@@ -39,6 +39,7 @@ namespace autolabor_driver {
 
     void CanbusDriver::update_parse_data() {
         size_t count = boost::asio::read(*port_.get(), boost::asio::buffer(receive_data_, 256), boost::asio::transfer_at_least(1), ec_);
+        ROS_DEBUG_STREAM("RECEIVE < " << array_to_string(receive_data_, count) << ">");
         size_t remain_byte_number = parse_end_index_ - parse_start_index_;
         if (remain_byte_number > 0) {
             uint8_t tmp_buffer[512];
@@ -188,9 +189,17 @@ namespace autolabor_driver {
                     }
                     service_msg_cache[13] = check_data(&service_msg_cache[1], 12);
                     boost::asio::write(*port_.get(), boost::asio::buffer(service_msg_cache, 14), ec_);
+                    ROS_DEBUG_STREAM("SEND < " << array_to_string(service_msg_cache, 14) << ">"
+                                              << " NODE_TYPE:" << (int)msg.node_type << ","
+                                              << " NODE_SEQ:" << (int)msg.node_seq << ","
+                                              << " MSG_TYPE:" << (int)msg.msg_type);
                 } else {
                     service_msg_cache[5] = check_data(&service_msg_cache[1], 4);
                     boost::asio::write(*port_.get(), boost::asio::buffer(service_msg_cache, 6), ec_);
+                    ROS_DEBUG_STREAM("SEND < " << array_to_string(service_msg_cache, 6) << ">"
+                                             << " NODE_TYPE:" << (int)msg.node_type << ","
+                                             << " NODE_SEQ:" << (int)msg.node_seq << ","
+                                             << " MSG_TYPE:" << (int)msg.msg_type);
                 }
             }
             return true;
@@ -206,7 +215,7 @@ namespace autolabor_driver {
 
         private_node.param<std::string>("port_name", port_name_, std::string("/dev/ttyUSB0"));
         private_node.param<int>("baud_rate", baud_rate_, 115200);
-        private_node.param<double>("parse_rate", parse_rate_, 200.0);
+        private_node.param<double>("parse_rate", parse_rate_, 100.0);
 
         if (init()) {
             canbus_msg_service_ = node.advertiseService("canbus_server", &CanbusDriver::canbus_service, this);

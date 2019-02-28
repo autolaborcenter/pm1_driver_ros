@@ -34,7 +34,7 @@ namespace autolabor_driver {
     public:
         Pm1Driver();
 
-        ~Pm1Driver();
+        ~Pm1Driver(){};
 
         void run();
 

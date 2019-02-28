@@ -12,10 +12,6 @@ namespace autolabor_driver {
 
     }
 
-    Pm1Driver::~Pm1Driver() {
-
-    }
-
     void Pm1Driver::ask_encoder(const ros::TimerEvent &) {
         autolabor_canbus_driver::CanBusService srv;
 

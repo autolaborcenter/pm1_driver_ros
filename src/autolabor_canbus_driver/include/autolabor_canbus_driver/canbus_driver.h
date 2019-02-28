@@ -64,6 +64,13 @@ namespace autolabor_driver {
 
         bool canbus_service(autolabor_canbus_driver::CanBusService::Request &req, autolabor_canbus_driver::CanBusService::Response &res);
 
+        inline std::string array_to_string(uint8_t *vp, size_t len) {
+            std::stringstream ss;
+            for (int i = 0; i < len; i++)
+                ss << std::hex << std::setw(2) << std::setfill('0') << (int) vp[i] << " ";
+            return ss.str();
+        }
+
     private:
         std::string port_name_;
         int baud_rate_;
