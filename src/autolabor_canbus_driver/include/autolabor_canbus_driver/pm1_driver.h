@@ -34,7 +34,7 @@ namespace autolabor_driver {
     public:
         Pm1Driver();
 
-        ~Pm1Driver(){};
+        ~Pm1Driver() {};
 
         void run();
 
@@ -167,6 +167,13 @@ namespace autolabor_driver {
 
         inline double interpolation(double from, double to, int number, int index) {
             return from + index * (to - from) / (number - 1);
+        }
+
+        inline std::string vector_to_string(std::vector<uint8_t> v) {
+            std::stringstream ss;
+            for (int i = 0; i < v.size(); i++)
+                ss << std::hex << std::setw(2) << std::setfill('0') << (int) v[i] << " ";
+            return ss.str();
         }
 
     private:

@@ -186,6 +186,17 @@ namespace autolabor_driver {
     }
 
     void Pm1Driver::handle_canbus_msg(const autolabor_canbus_driver::CanBusMessage::ConstPtr &msg) {
+        if (msg->payload.empty()) {
+            ROS_DEBUG_STREAM("RECEIVE_CANBUS_MESSAGE: " << " NODE_TYPE:" << (int) msg->node_type << ","
+                                                        << " NODE_SEQ:" << (int) msg->node_seq << ","
+                                                        << " MSG_TYPE:" << (int) msg->msg_type);
+        } else {
+            ROS_DEBUG_STREAM("RECEIVE_CANBUS_MESSAGE: " << " NODE_TYPE:" << (int) msg->node_type << ","
+                                                        << " NODE_SEQ:" << (int) msg->node_seq << ","
+                                                        << " MSG_TYPE:" << (int) msg->msg_type << ","
+                                                        << " MSG_PAYLOAD:" << vector_to_string(msg->payload));
+        }
+
         if ((msg->node_type == CANBUS_NODETYPE_ECU) && (msg->msg_type == CANBUS_MESSAGETYPE_ECU_CURRENTENCODER) && (!msg->payload.empty())) {
             if (msg->node_seq == ecu_left_id_) {
                 ecu_left_time_ = ros::Time::now();
@@ -243,8 +254,8 @@ namespace autolabor_driver {
         private_node.param<double>("twist_timeout", twist_timeout_, 1.0);
 
         private_node.param<double>("path_weight", path_weight_, 1.5);
-        private_node.param<double>("endpoint_weight", endpoint_weight_, 0.3);
-        private_node.param<double>("angle_weight", angle_weight_, 0.3);
+        private_node.param<double>("endpoint_weight", endpoint_weight_, 0.5);
+        private_node.param<double>("angle_weight", angle_weight_, 0.5);
 
         sync_timeout_ = 0.5 / rate_;
         speed_coefficient_ = reduction_ratio_ * encoder_resolution_ / M_PI / wheel_diameter_;
