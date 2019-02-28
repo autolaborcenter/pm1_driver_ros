@@ -88,12 +88,9 @@ namespace autolabor_driver {
         }
 
         inline int calculate_delta(long last, long current) {
-            long delta = 0;
-            if (current > last) {
-                delta = (current - last) < INT32_MAX ? (current - last) : (current - last - UINT32_MAX);
-            } else {
-                delta = (last - current) < INT32_MAX ? (current - last) : (current - last + UINT32_MAX);
-            }
+            long delta = current > last
+                         ?(current - last) < INT32_MAX ? (current - last) : (current - last - UINT32_MAX)
+                         :(last - current) < INT32_MAX ? (current - last) : (current - last + UINT32_MAX);
             return static_cast<int>(delta);
         }
 
