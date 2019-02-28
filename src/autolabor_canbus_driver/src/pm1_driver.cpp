@@ -36,7 +36,7 @@ namespace autolabor_driver {
 
     void Pm1Driver::send_odom() {
         ros::Time now = ros::Time::now();
-        if ((now - ecu_left_time_).sec < sync_timeout_ && (now - ecu_right_time_).sec < sync_timeout_) {
+        if ((now - ecu_left_time_).toSec() < sync_timeout_ && (now - ecu_right_time_).toSec() < sync_timeout_) {
             if (first_send_odom_flag_) {
                 ecu_left_last_encoder_ = ecu_left_current_encoder_;
                 ecu_right_last_encoder_ = ecu_right_current_encoder_;
@@ -46,11 +46,14 @@ namespace autolabor_driver {
                 accumulation_yaw_ = 0.0;
                 first_send_odom_flag_ = false;
             } else {
-                double delta_time = (now - last_send_odom_time_).sec;
-                last_send_odom_time_ = now;
+                double delta_time = (now - last_send_odom_time_).toSec();
 
                 int delta_left = calculate_delta(ecu_left_last_encoder_, ecu_left_current_encoder_);
                 int delta_right = calculate_delta(ecu_right_last_encoder_, ecu_right_current_encoder_);
+
+                last_send_odom_time_ = now;
+                ecu_left_last_encoder_ = ecu_left_current_encoder_;
+                ecu_right_last_encoder_ = ecu_right_current_encoder_;
 
                 double delta_dis = (delta_left + delta_right) / speed_coefficient_ / 2.0;
                 double delta_theta = (delta_right - delta_left) / speed_coefficient_ / wheel_spacing_;
@@ -205,11 +208,14 @@ namespace autolabor_driver {
                 double optimize_v, optimize_omega; // 速度
                 optimize_speed(twist_cache_.linear.x, twist_cache_.angular.z, wheel_angle, optimize_v, optimize_omega);
                 double target_angle = calculate_target_angle(twist_cache_.linear.x, twist_cache_.angular.z);
-                std::cout << "target_v : " << twist_cache_.linear.x << " target_omega : " << twist_cache_.angular.z << " target_angle : " << target_angle
-                          << " optimize_v : " << optimize_v << " optimize_omega : " << optimize_omega << " current_angle : " << wheel_angle << std::endl;
+//                std::cout << "target_v : " << twist_cache_.linear.x << " target_omega : " << twist_cache_.angular.z << " target_angle : " << target_angle
+//                          << " optimize_v : " << optimize_v << " optimize_omega : " << optimize_omega << " current_angle : " << wheel_angle << std::endl;
                 driver_car(optimize_v - optimize_omega * wheel_spacing_ / 2, optimize_v + optimize_omega * wheel_spacing_ / 2, target_angle);
             } else {
                 driver_car(0.0, 0.0, wheel_angle);
+//                std::cout << "target_v : " << 0 << " target_omega : " << 0 << " target_angle : " << wheel_angle
+//                          << " optimize_v : " << 0 << " optimize_omega : " << 0 << " current_angle : " << wheel_angle << std::endl;
+
             }
         }
     }
@@ -241,8 +247,8 @@ namespace autolabor_driver {
         private_node.param<double>("twist_timeout", twist_timeout_, 1.0);
 
         private_node.param<double>("path_weight", path_weight_, 1.5);
-        private_node.param<double>("endpoint_weight", endpoint_weight_, 1.0);
-        private_node.param<double>("angle_weight", angle_weight_, 0.5);
+        private_node.param<double>("endpoint_weight", endpoint_weight_, 0.3);
+        private_node.param<double>("angle_weight", angle_weight_, 0.3);
 
         sync_timeout_ = 0.5 / rate_;
         speed_coefficient_ = reduction_ratio_ * encoder_resolution_ / M_PI / wheel_diameter_;
