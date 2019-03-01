@@ -73,8 +73,7 @@ namespace autolabor_driver {
 
     private:
         std::string port_name_;
-        int baud_rate_;
-        double parse_rate_;
+        int baud_rate_, parse_rate_;
 
         boost::system::error_code ec_;
         boost::asio::io_service io_service_;

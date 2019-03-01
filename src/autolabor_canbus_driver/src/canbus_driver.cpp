@@ -215,7 +215,7 @@ namespace autolabor_driver {
 
         private_node.param<std::string>("port_name", port_name_, std::string("/dev/ttyUSB0"));
         private_node.param<int>("baud_rate", baud_rate_, 115200);
-        private_node.param<double>("parse_rate", parse_rate_, 100.0);
+        private_node.param<int>("parse_rate", parse_rate_, 100);
 
         if (init()) {
             canbus_msg_service_ = node.advertiseService("canbus_server", &CanbusDriver::canbus_service, this);
