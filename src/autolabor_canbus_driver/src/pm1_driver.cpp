@@ -1,4 +1,5 @@
 #include "autolabor_canbus_driver/pm1_driver.h"
+#include "utilities/big_endian_transform.h"
 
 #include <nav_msgs/Odometry.h>
 #include <std_msgs/Float64.h>
@@ -165,21 +166,21 @@ namespace autolabor_driver {
         ecu_left_target_speed.node_type = CANBUS_NODETYPE_ECU;
         ecu_left_target_speed.node_seq = static_cast<unsigned char>(ecu_left_id_);
         ecu_left_target_speed.msg_type = CANBUS_MESSAGETYPE_ECU_TARGETSPEED;
-        int_to_uint_vector(static_cast<int32_t>(lround(left * speed_coefficient_)), ecu_left_target_speed.payload);
+        ecu_left_target_speed.payload = autolabor::pack(static_cast<int32_t>(lround(left * speed_coefficient_)));
         srv.request.requests.push_back(ecu_left_target_speed);
 
         autolabor_canbus_driver::CanBusMessage ecu_right_target_speed;
         ecu_right_target_speed.node_type = CANBUS_NODETYPE_ECU;
         ecu_right_target_speed.node_seq = static_cast<unsigned char>(ecu_right_id_);
         ecu_right_target_speed.msg_type = CANBUS_MESSAGETYPE_ECU_TARGETSPEED;
-        int_to_uint_vector(static_cast<int32_t>(lround(right * speed_coefficient_)), ecu_right_target_speed.payload);
+        ecu_right_target_speed.payload = autolabor::pack(static_cast<int32_t>(lround(right * speed_coefficient_)));
         srv.request.requests.push_back(ecu_right_target_speed);
 
         autolabor_canbus_driver::CanBusMessage tcu_target_angle;
         tcu_target_angle.node_type = CANBUS_NODETYPE_TCU;
         tcu_target_angle.node_seq = static_cast<unsigned char>(tcu_id_);
         tcu_target_angle.msg_type = CANBUS_MESSAGETYPE_TCU_TARGETANGLE;
-        short_to_uint_vector(static_cast<int16_t>(lround(angle * spin_coefficient_)), tcu_target_angle.payload);
+        tcu_target_angle.payload = autolabor::pack(static_cast<int16_t>(lround(angle * spin_coefficient_)));
         srv.request.requests.push_back(tcu_target_angle);
 
         canbus_client_.call(srv);
@@ -200,14 +201,14 @@ namespace autolabor_driver {
         if ((msg->node_type == CANBUS_NODETYPE_ECU) && (msg->msg_type == CANBUS_MESSAGETYPE_ECU_CURRENTENCODER) && (!msg->payload.empty())) {
             if (msg->node_seq == ecu_left_id_) {
                 ecu_left_time_ = ros::Time::now();
-                ecu_left_current_encoder_ = uint_vector_to_int(msg->payload);
+                ecu_left_current_encoder_ = autolabor::build<long>(msg->payload.data());
             } else if (msg->node_seq == ecu_right_id_) {
                 ecu_right_time_ = ros::Time::now();
-                ecu_right_current_encoder_ = uint_vector_to_int(msg->payload);
+                ecu_right_current_encoder_ = autolabor::build<long>(msg->payload.data());
             }
             send_odom();
         } else if ((msg->node_type == CANBUS_NODETYPE_TCU) && (msg->msg_type == CANBUS_MESSAGETYPE_TCU_CURRENTANGLE) && (!msg->payload.empty())) {
-            int16_t wheel_spin_encoder = uint_vector_to_short(msg->payload);
+            int16_t wheel_spin_encoder = autolabor::build<int16_t>(msg->payload.data());
             double wheel_angle = wheel_spin_encoder / spin_coefficient_;
             send_wheel_angle(wheel_angle);
 
@@ -215,14 +216,13 @@ namespace autolabor_driver {
                 double optimize_v, optimize_omega; // 速度
                 optimize_speed(twist_cache_.linear.x, twist_cache_.angular.z, wheel_angle, optimize_v, optimize_omega);
                 double target_angle = calculate_target_angle(twist_cache_.linear.x, twist_cache_.angular.z);
-//                std::cout << "target_v : " << twist_cache_.linear.x << " target_omega : " << twist_cache_.angular.z << " target_angle : " << target_angle
-//                          << " optimize_v : " << optimize_v << " optimize_omega : " << optimize_omega << " current_angle : " << wheel_angle << std::endl;
                 driver_car(optimize_v - optimize_omega * wheel_spacing_ / 2, optimize_v + optimize_omega * wheel_spacing_ / 2, target_angle);
+                ROS_DEBUG_STREAM(
+                    "TARGET_SPEED:  target_v ->   " << std::setw(5) << twist_cache_.linear.x << ", target_omega ->   " << twist_cache_.angular.z << ", target_angle  -> "
+                                                    << target_angle);
+                ROS_DEBUG_STREAM("CURRENT_SPEED: optimize_v -> " << std::setw(5) << optimize_v << ", optimize_omega -> " << optimize_omega << ", current_angle -> " << wheel_angle);
             } else {
                 driver_car(0.0, 0.0, wheel_angle);
-//                std::cout << "target_v : " << 0 << " target_omega : " << 0 << " target_angle : " << wheel_angle
-//                          << " optimize_v : " << 0 << " optimize_omega : " << 0 << " current_angle : " << wheel_angle << std::endl;
-
             }
         }
     }
@@ -254,7 +254,7 @@ namespace autolabor_driver {
         private_node.param<double>("twist_timeout", twist_timeout_, 1.0);
 
         private_node.param<double>("path_weight", path_weight_, 1.5);
-        private_node.param<double>("endpoint_weight", endpoint_weight_, 0.5);
+        private_node.param<double>("endpoint_weight", endpoint_weight_, 1.0);
         private_node.param<double>("angle_weight", angle_weight_, 0.5);
 
         sync_timeout_ = 0.5 / rate_;

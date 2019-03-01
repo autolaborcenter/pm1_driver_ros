@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(autolabor_canbus_driver)
 
+set(CMAKE_CXX_STANDARD 11)
+
 find_package(catkin REQUIRED COMPONENTS
     roscpp
     tf
@@ -8,7 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
     geometry_msgs
     nav_msgs
     message_generation
-)
+    )
 
 ## Generate messages in the 'msg' folder
 add_message_files(
