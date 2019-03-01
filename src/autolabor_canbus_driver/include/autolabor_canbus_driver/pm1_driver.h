@@ -34,7 +34,7 @@ namespace autolabor_driver {
     public:
         Pm1Driver();
 
-        ~Pm1Driver() {};
+        ~Pm1Driver() = default;
 
         void run();
 
@@ -54,38 +54,6 @@ namespace autolabor_driver {
         void optimize_speed(double x, double z, double angle, double &left, double &right);
 
         void driver_car(double left, double right, double angle);
-
-//        inline long uint_vector_to_int(std::vector<uint8_t> v) {
-//            long x = 0;
-//            for (int i = 0; i < 4; i++) {
-//                x <<= 8;
-//                x |= v[i];
-//            }
-//            return x;
-//        }
-//
-//        inline void int_to_uint_vector(int32_t value, std::vector<uint8_t> &v) {
-//            v.clear();
-//            for (int i = 0; i < 4; i++) {
-//                v.push_back(static_cast<const unsigned char &>((value >> ((3 - i) * 8)) & 0xff));
-//            }
-//        }
-//
-//        inline int16_t uint_vector_to_short(std::vector<uint8_t> v) {
-//            int16_t x = 0;
-//            for (int i = 0; i < 2; i++) {
-//                x <<= 8;
-//                x |= v[i];
-//            }
-//            return x;
-//        }
-//
-//        inline void short_to_uint_vector(int16_t value, std::vector<uint8_t> &v) {
-//            v.clear();
-//            for (int i = 0; i < 2; i++) {
-//                v.push_back(static_cast<const unsigned char &>((value >> ((1 - i) * 8)) & 0xff));
-//            }
-//        }
 
         inline int calculate_delta(long last, long current) {
             long delta = current > last
