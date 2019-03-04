@@ -247,7 +247,7 @@ source devel/setup.bash
 ```
 gedit src/autolabor_canbus_driver/launch/driver.launch
 ```
-定位 “<param name="port_name" value="/dev/ttyUSB0" />”，将value值改为之前查看的车底盘的设备节点名，修改后保存并关闭
+定位 *<param name="port_name" value="/dev/ttyUSB0" />*，将value值改为之前查看的车底盘的设备节点名，修改后保存并关闭
 
 执行launch文件
 
