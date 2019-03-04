@@ -1,16 +1,11 @@
 # autolabor_canbus_driver/CanBusService Message
 ## Raw Message Definition
-~~~
-uint8 node_type  # 节点类型
-uint8 node_seq   # 节点序号
-uint8 msg_type   # CAN消息类型
-uint8[] payload  # CAN消息内容(指令数据时为空)
-~~~
-
+```
+autolabor_canbus_driver/CanBusMessage[] requests # CANBus指令列表
+---
+```
 ## Compact Message Definition
 ~~~
-uint8 node_type
-uint8 node_seq
-uint8 msg_type
-uint8[] payload
+autolabor_canbus_driver/CanBusMessage[] requests
+---
 ~~~
