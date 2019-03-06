@@ -201,10 +201,10 @@ namespace autolabor_driver {
         if ((msg->node_type == CANBUS_NODETYPE_ECU) && (msg->msg_type == CANBUS_MESSAGETYPE_ECU_CURRENTENCODER) && (!msg->payload.empty())) {
             if (msg->node_seq == ecu_left_id_) {
                 ecu_left_time_ = ros::Time::now();
-                ecu_left_current_encoder_ = autolabor::build<long>(msg->payload.data());
+                ecu_left_current_encoder_ = autolabor::build<uint32_t >(msg->payload.data());
             } else if (msg->node_seq == ecu_right_id_) {
                 ecu_right_time_ = ros::Time::now();
-                ecu_right_current_encoder_ = autolabor::build<long>(msg->payload.data());
+                ecu_right_current_encoder_ = autolabor::build<uint32_t >(msg->payload.data());
             }
             send_odom();
         } else if ((msg->node_type == CANBUS_NODETYPE_TCU) && (msg->msg_type == CANBUS_MESSAGETYPE_TCU_CURRENTANGLE) && (!msg->payload.empty())) {
