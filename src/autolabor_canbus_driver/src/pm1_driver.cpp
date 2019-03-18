@@ -41,6 +41,7 @@ namespace autolabor_driver {
                 accumulation_x_ = 0.0;
                 accumulation_y_ = 0.0;
                 accumulation_yaw_ = 0.0;
+                smooth_speed_ = 0.0;
                 first_send_odom_flag_ = false;
             } else {
                 double delta_time = (now - last_send_odom_time_).toSec();
@@ -120,43 +121,14 @@ namespace autolabor_driver {
         }
     }
 
-    // 已经排除了线速度和角速度为0的情况
-    void Pm1Driver::optimize_speed(double v, double omega, double angle, double &optimize_v, double &optimize_omega) {
-        double theta;
-        spin_to_theta(angle, theta);
-        double rho_from = -1.0, rho_to = 1.0;
-        double rho_diff = fabs(rho_to - rho_from);
-
-        double best_rho = 0;
-
-        while (rho_diff > threshold_) {
-            int best_index = -1;
-            double best_value = DBL_MAX;
-            for (int i = 0; i < sample_size_; i++) {
-                double rho = interpolation(rho_from, rho_to, sample_size_, i);
-                double v_limit, omega_limit;
-                rhotheta_to_vomega(rho, theta, v_limit, omega_limit);
-                double value = optimize_function(v, omega, v_limit, omega_limit);
-                if (value < best_value) {
-                    best_index = i;
-                    best_value = value;
-                }
-            }
-
-            rho_diff /= sample_size_;
-            if (best_index == 0) {
-                best_rho = rho_from;
-                rho_to = rho_from + rho_diff;
-            } else if (best_index == sample_size_ - 1) {
-                best_rho = rho_to;
-                rho_from = rho_to - rho_diff;
-            } else {
-                best_rho = interpolation(rho_from, rho_to, sample_size_, best_index);
-                rho_from = best_rho - rho_diff;
-                rho_to = best_rho + rho_diff;
-            }
-        }
-        rhotheta_to_vomega(best_rho, theta, optimize_v, optimize_omega);
+    wheels Pm1Driver::optimize_speed(double v, double omega, double angle) {
+        struct velocity input_velocity = {static_cast<float>(v), static_cast<float>(omega)};
+        auto physical = velocity_to_physical(&input_velocity, &user_config);
+        double diff_angle = fabs(angle - physical.rudder);
+        double opt_speed = diff_angle > optimize_limit_ ? 0 : (1 - diff_angle / optimize_limit_) * physical.speed;
+        smooth_speed_ = opt_speed > smooth_speed_ ? fmin(opt_speed, smooth_speed_ + smooth_coefficient_) : fmax(opt_speed, smooth_speed_ - smooth_coefficient_);
+        struct physical output_physical = {static_cast<float>(smooth_speed_), static_cast<float>(angle)};
+        return physical_to_wheels(&output_physical, &user_config);
     }
 
     void Pm1Driver::driver_car(double left, double right, double angle) {
@@ -201,28 +173,30 @@ namespace autolabor_driver {
         if ((msg->node_type == CANBUS_NODETYPE_ECU) && (msg->msg_type == CANBUS_MESSAGETYPE_ECU_CURRENTENCODER) && (!msg->payload.empty())) {
             if (msg->node_seq == ecu_left_id_) {
                 ecu_left_time_ = ros::Time::now();
-                ecu_left_current_encoder_ = autolabor::build<uint32_t >(msg->payload.data());
+                ecu_left_current_encoder_ = autolabor::build<uint32_t>(msg->payload.data());
             } else if (msg->node_seq == ecu_right_id_) {
                 ecu_right_time_ = ros::Time::now();
-                ecu_right_current_encoder_ = autolabor::build<uint32_t >(msg->payload.data());
+                ecu_right_current_encoder_ = autolabor::build<uint32_t>(msg->payload.data());
             }
             send_odom();
         } else if ((msg->node_type == CANBUS_NODETYPE_TCU) && (msg->msg_type == CANBUS_MESSAGETYPE_TCU_CURRENTANGLE) && (!msg->payload.empty())) {
             int16_t wheel_spin_encoder = autolabor::build<int16_t>(msg->payload.data());
-            double wheel_angle = wheel_spin_encoder / spin_coefficient_;
+            double wheel_angle = -wheel_spin_encoder / spin_coefficient_;
             send_wheel_angle(wheel_angle);
 
             if ((twist_cache_.linear.x != 0 || twist_cache_.angular.z != 0) && (ros::Time::now() - last_twist_time_).sec < twist_timeout_) {
-                double optimize_v, optimize_omega; // 速度
-                optimize_speed(twist_cache_.linear.x, twist_cache_.angular.z, wheel_angle, optimize_v, optimize_omega);
+                struct wheels opt_wheels = optimize_speed(twist_cache_.linear.x, twist_cache_.angular.z, wheel_angle);
                 double target_angle = calculate_target_angle(twist_cache_.linear.x, twist_cache_.angular.z);
-                driver_car(optimize_v - optimize_omega * wheel_spacing_ / 2, optimize_v + optimize_omega * wheel_spacing_ / 2, target_angle);
+                driver_car(opt_wheels.left, opt_wheels.right, target_angle);
                 ROS_DEBUG_STREAM(
                     "TARGET_SPEED:  target_v ->   " << std::setw(5) << twist_cache_.linear.x << ", target_omega ->   " << twist_cache_.angular.z << ", target_angle  -> "
                                                     << target_angle);
-                ROS_DEBUG_STREAM("CURRENT_SPEED: optimize_v -> " << std::setw(5) << optimize_v << ", optimize_omega -> " << optimize_omega << ", current_angle -> " << wheel_angle);
             } else {
-                driver_car(0.0, 0.0, wheel_angle);
+//                struct wheels opt_wheels = optimize_speed(0, 0, wheel_angle);
+                smooth_speed_ = 0 > smooth_speed_ ? fmin(0, smooth_speed_ + smooth_coefficient_) : fmax(0, smooth_speed_ - smooth_coefficient_);
+                struct physical physical_smooth = {static_cast<float>(smooth_speed_), static_cast<float>(wheel_angle)};
+                struct wheels opt_wheels = physical_to_wheels(&physical_smooth, &user_config);
+                driver_car(opt_wheels.left, opt_wheels.right, -wheel_angle);
             }
         }
     }
@@ -256,6 +230,15 @@ namespace autolabor_driver {
         private_node.param<double>("path_weight", path_weight_, 1.5);
         private_node.param<double>("endpoint_weight", endpoint_weight_, 1.0);
         private_node.param<double>("angle_weight", angle_weight_, 0.5);
+
+        private_node.param<double>("optimize_limit", optimize_limit_, M_PI / 3);
+        private_node.param<double>("smooth_coefficient", smooth_coefficient_, 0.1);
+
+        user_config.width = static_cast<float>(wheel_spacing_);
+        user_config.length = static_cast<float>(shaft_spacing_);
+        user_config.radius = static_cast<float>(wheel_diameter_);
+        user_config.max_wheel_speed = static_cast<float>(max_speed_);
+
 
         sync_timeout_ = 0.5 / rate_;
         speed_coefficient_ = reduction_ratio_ * encoder_resolution_ / M_PI / wheel_diameter_;

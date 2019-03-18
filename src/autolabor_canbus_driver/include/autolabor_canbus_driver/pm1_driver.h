@@ -11,6 +11,11 @@
 #include "autolabor_canbus_driver/CanBusMessage.h"
 #include "autolabor_canbus_driver/CanBusService.h"
 
+extern "C" {
+#include "autolabor_canbus_driver/model.h"
+}
+
+
 const int CANBUS_NODETYPE_ECU = 0x11;
 const int CANBUS_MESSAGETYPE_ECU_TARGETSPEED = 0x01;
 const int CANBUS_MESSAGETYPE_ECU_CURRENTENCODER = 0x06;
@@ -51,7 +56,7 @@ namespace autolabor_driver {
 
         double calculate_target_angle(double x, double z);
 
-        void optimize_speed(double x, double z, double angle, double &left, double &right);
+        wheels optimize_speed(double x, double z, double angle);
 
         void driver_car(double left, double right, double angle);
 
@@ -60,77 +65,6 @@ namespace autolabor_driver {
                          ?(current - last) < INT32_MAX ? (current - last) : (current - last - UINT32_MAX)
                          :(last - current) < INT32_MAX ? (current - last) : (current - last + UINT32_MAX);
             return static_cast<int>(delta);
-        }
-
-        inline void spin_to_theta(double spin, double &theta) {
-            if (spin == 0) {
-                theta = M_PI_4;
-            } else if (spin == M_PI_2 || spin == -M_PI_2) {
-                theta = -M_PI_4;
-            } else {
-                double c = 2 * shaft_spacing_ / (tan(spin) * wheel_spacing_);
-                if (c == -1) {
-                    theta = 0;
-                } else {
-                    theta = atan((c - 1) / (c + 1));
-                }
-            }
-        }
-
-        inline void rhotheta_to_vomega(double rho, double theta, double &v, double &omega) {
-            double left_speed = 0, right_speed = 0;
-            if (fabs(theta) < M_PI_4) {
-                left_speed = rho * max_speed_;
-                right_speed = tan(theta) * left_speed;
-            } else {
-                right_speed = rho * max_speed_;
-                left_speed = tan(M_PI_2 - theta) * right_speed;
-            }
-            v = (left_speed + right_speed) / 2;
-            omega = (left_speed - right_speed) / wheel_spacing_;
-        }
-
-        inline void vomega_to_xyyaw(double v, double omega, double &x, double &y, double &yaw) {
-            if (v == 0 && omega == 0) {
-                x = 0.0;
-                y = 0.0;
-                yaw = 0.0;
-            } else if (v == 0) {
-                x = 0.0;
-                y = 0.0;
-                yaw = omega / rate_;
-            } else if (omega == 0) {
-                x = v / rate_;
-                y = 0;
-                yaw = 0.0;
-            } else {
-                double r = v / omega;
-                yaw = omega / rate_;
-                x = r * sin(yaw);
-                y = r * (1 - cos(yaw));
-            }
-        }
-
-        inline double optimize_function(double v_target, double omega_target, double v_limit, double omega_limit) {
-            double x_target, y_target, yaw_target;
-            vomega_to_xyyaw(v_target, omega_target, x_target, y_target, yaw_target);
-            double x_limit, y_limit, yaw_limit;
-            vomega_to_xyyaw(v_limit, omega_limit, x_limit, y_limit, yaw_limit);
-
-            double distance_from_endpoint = sqrt(pow(x_target - x_limit, 2) + pow(y_target - y_limit, 2));
-            double distance_from_yaw = fabs(yaw_target - yaw_limit);
-            double distance_from_targetpath;
-            if (y_target == 0) { // target
-                distance_from_targetpath = fabs(y_limit);
-            } else {
-                double r_target = v_target / omega_target;
-                distance_from_targetpath = fabs(sqrt(pow(x_limit, 2.0) + pow(y_limit - r_target, 2.0)) - fabs(r_target));
-            }
-            return path_weight_ * distance_from_targetpath + endpoint_weight_ * distance_from_endpoint + angle_weight_ * distance_from_yaw;
-        }
-
-        inline double interpolation(double from, double to, int number, int index) {
-            return from + index * (to - from) / (number - 1);
         }
 
         inline std::string vector_to_string(std::vector<uint8_t> v) {
@@ -152,6 +86,9 @@ namespace autolabor_driver {
 
         double reduction_ratio_, encoder_resolution_, wheel_diameter_, wheel_spacing_, shaft_spacing_, max_speed_;
         double speed_coefficient_, max_motion_encoder_, spin_coefficient_;
+        double optimize_limit_;
+        double smooth_speed_, smooth_coefficient_;
+        struct chassis_config_t user_config;
 
         ros::Time ecu_left_time_, ecu_right_time_;
         long ecu_left_last_encoder_, ecu_right_last_encoder_;
@@ -165,7 +102,6 @@ namespace autolabor_driver {
         int sample_size_;
         double threshold_;
 
-
         tf2_ros::TransformBroadcaster br_;
 
         ros::Subscriber twist_subscriber_;
@@ -174,7 +110,6 @@ namespace autolabor_driver {
 
         ros::Publisher odom_pub_;
         ros::Publisher wheel_angle_pub_;
-
     };
 
 }
