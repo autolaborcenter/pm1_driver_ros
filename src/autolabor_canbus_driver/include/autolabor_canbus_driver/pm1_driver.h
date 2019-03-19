@@ -98,10 +98,6 @@ namespace autolabor_driver {
         ros::Time last_send_odom_time_;
         double accumulation_x_, accumulation_y_, accumulation_yaw_;
 
-        double path_weight_, endpoint_weight_, angle_weight_;
-        int sample_size_;
-        double threshold_;
-
         tf2_ros::TransformBroadcaster br_;
 
         ros::Subscriber twist_subscriber_;

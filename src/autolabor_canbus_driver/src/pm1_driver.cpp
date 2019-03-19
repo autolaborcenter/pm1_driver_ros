@@ -9,7 +9,7 @@
 namespace autolabor_driver {
 
 
-    Pm1Driver::Pm1Driver() : first_send_odom_flag_(true), sample_size_(7), threshold_(1e-7) {
+    Pm1Driver::Pm1Driver() : first_send_odom_flag_(true) {
 
     }
 
@@ -192,7 +192,6 @@ namespace autolabor_driver {
                     "TARGET_SPEED:  target_v ->   " << std::setw(5) << twist_cache_.linear.x << ", target_omega ->   " << twist_cache_.angular.z << ", target_angle  -> "
                                                     << target_angle);
             } else {
-//                struct wheels opt_wheels = optimize_speed(0, 0, wheel_angle);
                 smooth_speed_ = 0 > smooth_speed_ ? fmin(0, smooth_speed_ + smooth_coefficient_) : fmax(0, smooth_speed_ - smooth_coefficient_);
                 struct physical physical_smooth = {static_cast<float>(smooth_speed_), static_cast<float>(wheel_angle)};
                 struct wheels opt_wheels = physical_to_wheels(&physical_smooth, &user_config);
@@ -226,10 +225,6 @@ namespace autolabor_driver {
         private_node.param<double>("max_speed", max_speed_, 2.0);
 
         private_node.param<double>("twist_timeout", twist_timeout_, 1.0);
-
-        private_node.param<double>("path_weight", path_weight_, 1.5);
-        private_node.param<double>("endpoint_weight", endpoint_weight_, 1.0);
-        private_node.param<double>("angle_weight", angle_weight_, 0.5);
 
         private_node.param<double>("optimize_limit", optimize_limit_, M_PI / 3);
         private_node.param<double>("smooth_coefficient", smooth_coefficient_, 0.1);
