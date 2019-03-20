@@ -205,6 +205,10 @@ namespace autolabor_driver {
         twist_cache_ = *msg;
     }
 
+    bool Pm1Driver::reset_odom(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+        first_send_odom_flag_ = true;
+    }
+
     void Pm1Driver::run() {
         ros::NodeHandle node;
         ros::NodeHandle private_node("~");
@@ -219,14 +223,14 @@ namespace autolabor_driver {
 
         private_node.param<double>("reduction_ratio", reduction_ratio_, 20.0);
         private_node.param<double>("encoder_resolution", encoder_resolution_, 1600.0);
-        private_node.param<double>("wheel_diameter", wheel_diameter_, 0.211);
-        private_node.param<double>("wheel_spacing", wheel_spacing_, 0.412);
-        private_node.param<double>("shaft_spacing", shaft_spacing_, 0.324);
+        private_node.param<double>("wheel_diameter", wheel_diameter_, 0.20);
+        private_node.param<double>("wheel_spacing", wheel_spacing_, 0.4137);
+        private_node.param<double>("shaft_spacing", shaft_spacing_, 0.317);
         private_node.param<double>("max_speed", max_speed_, 2.0);
 
         private_node.param<double>("twist_timeout", twist_timeout_, 1.0);
 
-        private_node.param<double>("optimize_limit", optimize_limit_, M_PI / 3);
+        private_node.param<double>("optimize_limit", optimize_limit_, M_PI / 4);
         private_node.param<double>("smooth_coefficient", smooth_coefficient_, 0.1);
 
         user_config.width = static_cast<float>(wheel_spacing_);
@@ -246,6 +250,8 @@ namespace autolabor_driver {
 
         odom_pub_ = node.advertise<nav_msgs::Odometry>("/odom", 10);
         wheel_angle_pub_ = node.advertise<std_msgs::Float64>("/wheel_angle", 10);
+
+        reset_odom_service_ = node.advertiseService("reset_odom", &Pm1Driver::reset_odom, this);
 
         ros::Timer ask_encoder_timer = node.createTimer(ros::Duration(1.0 / rate_), &Pm1Driver::ask_encoder, this);
 

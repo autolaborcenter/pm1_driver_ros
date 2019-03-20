@@ -4,6 +4,7 @@
 #include <climits>
 
 #include <ros/ros.h>
+#include <std_srvs/Empty.h>
 #include <geometry_msgs/Twist.h>
 
 #include <tf2_ros/transform_broadcaster.h>
@@ -56,6 +57,8 @@ namespace autolabor_driver {
 
         double calculate_target_angle(double x, double z);
 
+        bool reset_odom(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
+
         wheels optimize_speed(double x, double z, double angle);
 
         void driver_car(double left, double right, double angle);
@@ -102,7 +105,10 @@ namespace autolabor_driver {
 
         ros::Subscriber twist_subscriber_;
         ros::Subscriber canbus_msg_subscriber_;
+
         ros::ServiceClient canbus_client_;
+
+        ros::ServiceServer reset_odom_service_;
 
         ros::Publisher odom_pub_;
         ros::Publisher wheel_angle_pub_;
