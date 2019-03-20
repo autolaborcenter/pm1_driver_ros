@@ -113,11 +113,11 @@ namespace autolabor_driver {
 
     double Pm1Driver::calculate_target_angle(double x, double z) {
         if (x == 0) {
-            return z >= 0 ? M_PI_2 : -M_PI_2;
+            return z >= 0 ? -M_PI_2 : M_PI_2;
         } else if (z == 0) {
             return 0.0;
         } else {
-            return atan(shaft_spacing_ / (x / z));
+            return -atan(shaft_spacing_ / (x / z));
         }
     }
 
@@ -181,7 +181,7 @@ namespace autolabor_driver {
             send_odom();
         } else if ((msg->node_type == CANBUS_NODETYPE_TCU) && (msg->msg_type == CANBUS_MESSAGETYPE_TCU_CURRENTANGLE) && (!msg->payload.empty())) {
             int16_t wheel_spin_encoder = autolabor::build<int16_t>(msg->payload.data());
-            double wheel_angle = -wheel_spin_encoder / spin_coefficient_;
+            double wheel_angle = wheel_spin_encoder / spin_coefficient_;
             send_wheel_angle(wheel_angle);
 
             if ((twist_cache_.linear.x != 0 || twist_cache_.angular.z != 0) && (ros::Time::now() - last_twist_time_).sec < twist_timeout_) {
@@ -195,7 +195,7 @@ namespace autolabor_driver {
                 smooth_speed_ = 0 > smooth_speed_ ? fmin(0, smooth_speed_ + smooth_coefficient_) : fmax(0, smooth_speed_ - smooth_coefficient_);
                 struct physical physical_smooth = {static_cast<float>(smooth_speed_), static_cast<float>(wheel_angle)};
                 struct wheels opt_wheels = physical_to_wheels(&physical_smooth, &user_config);
-                driver_car(opt_wheels.left, opt_wheels.right, -wheel_angle);
+                driver_car(opt_wheels.left, opt_wheels.right, wheel_angle);
             }
         }
     }
