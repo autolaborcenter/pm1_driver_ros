@@ -13,7 +13,9 @@
 #include "autolabor_canbus_driver/CanBusService.h"
 
 extern "C" {
-#include "autolabor_canbus_driver/model.h"
+#include "control_model/model.h"
+#include "control_model/motor_map.h"
+#include "control_model/optimization.h"
 }
 
 
@@ -55,11 +57,7 @@ namespace autolabor_driver {
 
         void send_wheel_angle(double wheel_angle);
 
-        double calculate_target_angle(double x, double z);
-
         bool reset_odom(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
-
-        wheels optimize_speed(double x, double z, double angle);
 
         void driver_car(double left, double right, double angle);
 
@@ -87,10 +85,15 @@ namespace autolabor_driver {
         int rate_;
         double sync_timeout_;
 
-        double reduction_ratio_, encoder_resolution_, wheel_diameter_, wheel_spacing_, shaft_spacing_, max_speed_;
-        double speed_coefficient_, max_motion_encoder_, spin_coefficient_;
-        double optimize_limit_;
-        double smooth_speed_, smooth_coefficient_;
+        float reduction_ratio_, encoder_resolution_, wheel_diameter_, wheel_spacing_, shaft_spacing_, max_speed_;
+        float optimize_limit_, smooth_coefficient_;
+
+        float max_speed_rad_, smooth_coefficient_depend_;
+
+        struct physical current_physical_{};
+
+        float wheel_k_, rudder_k_;
+
         struct chassis_config_t user_config;
 
         ros::Time ecu_left_time_, ecu_right_time_;

@@ -1,9 +1,11 @@
 <launch>
-    <node name="canbus_driver" pkg="autolabor_canbus_driver" type="canbus_driver" output="screen" />
+    <node name="canbus_driver" pkg="autolabor_canbus_driver" type="canbus_driver" output="screen">
+        <param name="port_name" value="/dev/ttyUSB0" type="string" />
+    </node>
 
     <node name="pm1_driver" pkg="autolabor_canbus_driver" type="pm1_driver" output="screen" >
-      <param name="optimize_limit" value="0.75" />
-      <param name="smooth_coefficient" value="0.1" />
+      <!--param name="optimize_limit" value="0.75" />
+      <param name="smooth_coefficient" value="0.2" /-->
     </node>
 
     <node name="joy" pkg="joy" type="joy_node" />

@@ -47,7 +47,10 @@ include_directories(
 )
 
 add_executable(canbus_driver src/canbus_driver.cpp)
-add_executable(pm1_driver src/pm1_driver.cpp src/model.c)
+add_executable(pm1_driver src/pm1_driver.cpp
+                          src/control_model/chassis_config_t.c
+                          src/control_model/model.c
+                          src/control_model/optimization.c)
 
 add_dependencies(canbus_driver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(pm1_driver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
