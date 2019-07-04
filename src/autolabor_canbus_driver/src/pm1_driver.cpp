@@ -69,21 +69,23 @@ namespace autolabor_driver {
                 accumulation_y_ += (sin(accumulation_yaw_) * deltaX + cos(accumulation_yaw_) * deltaY);
                 accumulation_yaw_ += delta_theta;
 
-                geometry_msgs::TransformStamped transform_stamped;
-                transform_stamped.header.stamp = now;
-                transform_stamped.header.frame_id = odom_frame_;
-                transform_stamped.child_frame_id = base_frame_;
-                transform_stamped.transform.translation.x = accumulation_x_;
-                transform_stamped.transform.translation.y = accumulation_y_;
-                transform_stamped.transform.translation.z = 0.0;
                 tf2::Quaternion q;
                 q.setRPY(0, 0, accumulation_yaw_);
-                transform_stamped.transform.rotation.x = q.x();
-                transform_stamped.transform.rotation.y = q.y();
-                transform_stamped.transform.rotation.z = q.z();
-                transform_stamped.transform.rotation.w = q.w();
 
-                br_.sendTransform(transform_stamped);
+                if (publish_tf_) {
+                    geometry_msgs::TransformStamped transform_stamped;
+                    transform_stamped.header.stamp = now;
+                    transform_stamped.header.frame_id = odom_frame_;
+                    transform_stamped.child_frame_id = base_frame_;
+                    transform_stamped.transform.translation.x = accumulation_x_;
+                    transform_stamped.transform.translation.y = accumulation_y_;
+                    transform_stamped.transform.translation.z = 0.0;
+                    transform_stamped.transform.rotation.x = q.x();
+                    transform_stamped.transform.rotation.y = q.y();
+                    transform_stamped.transform.rotation.z = q.z();
+                    transform_stamped.transform.rotation.w = q.w();
+                    br_.sendTransform(transform_stamped);
+                }
 
                 nav_msgs::Odometry odom_msg;
                 odom_msg.header.frame_id = odom_frame_;
@@ -212,7 +214,8 @@ namespace autolabor_driver {
         private_node.param<double>("twist_timeout", twist_timeout_, 1.0);
 
         private_node.param<float>("optimize_limit", optimize_limit_, static_cast<const float>(M_PI / 4));
-        private_node.param<float>("smooth_coefficient", smooth_coefficient_,0.1);
+        private_node.param<float>("smooth_coefficient", smooth_coefficient_, 0.1);
+        private_node.param<bool>("publish_tf", publish_tf_, true);
         smooth_coefficient_depend_ = smooth_coefficient_ * (max_speed_rad_ / rate_);
 
         user_config.width = wheel_spacing_;

@@ -88,6 +88,8 @@ namespace autolabor_driver {
         float reduction_ratio_, encoder_resolution_, wheel_diameter_, wheel_spacing_, shaft_spacing_, max_speed_;
         float optimize_limit_, smooth_coefficient_;
 
+        bool publish_tf_;
+
         float max_speed_rad_, smooth_coefficient_depend_;
 
         struct physical current_physical_{};
